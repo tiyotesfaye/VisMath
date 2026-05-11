@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VisMath — Interactive Math Platform</title>
+    <meta name="description" content="Explore mathematics through interactive graphs and AI-powered real-world problem solving. From elementary patterns to high school calculus." />
+
+    <!-- Favicon (inline SVG data URI — no extra file needed) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📐</text></svg>" />
+
+    <!--
+      React 18 + ReactDOM — production UMD builds via esm.sh CDN.
+      Using UMD (not ESM) so Babel standalone can see window.React / window.ReactDOM.
+    -->
+    <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!--
+      Babel Standalone — transpiles JSX + modern JS in the browser.
+      @babel/standalone is the official, maintained package.
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+
+    <style>
+      /* Minimal pre-render baseline so there's no flash of unstyled content */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { height: 100%; }
+      body { background: #080c10; color: #e8edf2; }
+      #root { min-height: 100vh; }
+
+      /* Loading indicator shown before React mounts */
+      #loading {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: #080c10;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 14px;
+        color: #00d4ff;
+        letter-spacing: 0.15em;
+        z-index: 9999;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Pre-mount loading splash -->
+    <div id="loading">LOADING VISMATH…</div>
+
+    <!-- React mounts here -->
+    <div id="root"></div>
+
+    <!--
+      type="text/babel" tells Babel Standalone to transpile this script.
+      data-type="module" enables ES-module-style import/export syntax inside Babel.
+
+      IMPORTANT: VisMath.jsx uses named imports from "react"
+        e.g. import { useState, useEffect … } from "react"
+      We map "react" → window.React so Babel's module shim resolves it correctly.
+    -->
+    <script
+      type="text/babel"
+      data-type="module"
+      data-presets="react"
+      src="VisMath.jsx"
+    ></script>
+
+    <!--
+      Boot script: waits for Babel to finish transpiling VisMath.jsx,
+      then mounts the default export into #root.
+
+      We use a small retry loop because Babel processes <script src> async —
+      the module's default export isn't available until Babel is done.
+    -->
+    <script>
+      // Expose React hooks globally so VisMath.jsx's named imports resolve.
+      // Babel standalone maps `import { x } from "react"` to window.React.x
+      // when the module is listed in its importMap.
+      Babel.registerPreset("react", Babel.availablePresets["react"]);
+
+      // Tell Babel to resolve "react" imports from window.React
+      // This is done via Babel's built-in transform-modules-commonjs +
+      // a global shim placed before the script runs.
+      window.__babelModuleShims = window.__babelModuleShims || {};
+      window.__babelModuleShims["react"] = window.React;
+
+      // Poll for the VisMath component (registered by Babel after transpilation)
+      function mountApp() {
+        // Babel standalone registers modules on window.__babelModules
+        // OR exposes the default export if data-type="module" is used.
+        // We check both locations.
+        const mod =
+          (window.__babelModules && window.__babelModules["VisMath.jsx"]) ||
+          window.__VisMath_default__;
+
+        if (mod && (mod.default || typeof mod === "function")) {
+          const App = mod.default || mod;
+          const root = ReactDOM.createRoot(document.getElementById("root"));
+          root.render(React.createElement(App));
+          document.getElementById("loading").style.display = "none";
+        } else {
+          setTimeout(mountApp, 50);
+        }
+      }
+
+      // Babel fires a custom event when it finishes all transforms
+      document.addEventListener("DOMContentLoaded", () => {
+        // Give Babel a tick to start, then begin polling
+        setTimeout(mountApp, 100);
+      });
+    </script>
+
+    <!--
+      ALTERNATIVE / FALLBACK MOUNT:
+      If the polling approach above doesn't fire (e.g. very slow CDN),
+      this inline Babel script directly imports and mounts the component.
+      It runs after the external VisMath.jsx script has been processed.
+    -->
+    <script type="text/babel" data-type="module" data-presets="react">
+      import VisMathApp from "./VisMath.jsx";
+
+      const rootEl = document.getElementById("root");
+      if (rootEl && !rootEl._reactRootContainer && !rootEl._reactInternals) {
+        const root = ReactDOM.createRoot(rootEl);
+        root.render(React.createElement(VisMathApp));
+        const loader = document.getElementById("loading");
+        if (loader) loader.style.display = "none";
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/VisMath.jsx",
+      "headers": {
+        "Content-Type": "text/babel"
+      },
+      "dest": "/VisMath.jsx"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
